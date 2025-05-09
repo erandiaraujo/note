@@ -3,82 +3,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Detector de Nota - ml5.js</title>
+  <title>Detector de Nota - Pitchy</title>
   <style>
     body {
-      background: #e01919;
+      background: #111;
       color: white;
       font-family: sans-serif;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
       margin: 0;
-      flex-direction: column;
+    }
+    h1 {
+      margin-bottom: 20px;
     }
     #note {
-      font-size: 2.5rem;
-      margin-top: 20px;
+      font-size: 3rem;
     }
   </style>
 </head>
 <body>
-  <h1>Toque uma nota (usando microfone)...</h1>
-  <div id="note">Carregando modelo...</div>
+  <h1>Toque uma nota</h1>
+  <div id="note">Aguardando som...</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
-  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+  <script type="module">
+    import { createPitchDetector, noteFromPitch } from 'https://cdn.jsdelivr.net/npm/pitchy@2.4.1/+esm';
 
-  <script>
-    let pitch;
-    let mic;
     const noteDisplay = document.getElementById('note');
 
-    function modelLoaded() {
-      noteDisplay.innerText = 'Modelo carregado! Faça um som...';
-      getPitch();
-    }
+    async function start() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const context = new AudioContext();
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
 
-    function setup() {
-      noCanvas();
-      mic = new p5.AudioIn();
-      mic.start(startPitch);
-    }
+      const detector = createPitchDetector(analyser, context.sampleRate);
 
-    function startPitch() {
-      pitch = ml5.pitchDetection(
-        'https://cdn.jsdelivr.net/npm/@ml5js/pitch-detection@0.2.0/model/',
-        getAudioContext(),
-        mic.stream,
-        modelLoaded
-      );
-    }
-
-    function getPitch() {
-      pitch.getPitch(function(err, frequency) {
-        if (frequency) {
-          let midi = freqToMidi(frequency);
-          let note = midiToNoteName(midi);
-          noteDisplay.innerText = `Nota detectada: ${note}`;
+      function detect() {
+        const [pitch, clarity] = detector.getPitch();
+        if (clarity > 0.98 && pitch) {
+          const note = noteFromPitch(pitch);
+          noteDisplay.innerText = `Nota: ${note}`;
         } else {
           noteDisplay.innerText = "Aguardando som...";
         }
-        getPitch();
-      });
+        requestAnimationFrame(detect);
+      }
+
+      detect();
     }
 
-    // Helpers
-    function freqToMidi(freq) {
-      return Math.round(69 + 12 * Math.log2(freq / 440));
-    }
-
-    function midiToNoteName(midi) {
-      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      const note = notes[midi % 12];
-      const octave = Math.floor(midi / 12) - 1;
-      return note + octave;
-    }
+    start();
   </script>
 </body>
 </html>
