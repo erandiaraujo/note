@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Detector de Nota - ml5.js</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      flex-direction: column;
+    }
+    #note {
+      font-size: 2.5rem;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Toque uma nota (usando microfone)...</h1>
+  <div id="note">Carregando modelo...</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/addons/p5.sound.min.js"></script>
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+
+  <script>
+    let pitch;
+    let mic;
+    const noteDisplay = document.getElementById('note');
+
+    function modelLoaded() {
+      noteDisplay.innerText = 'Modelo carregado! Faça um som...';
+      getPitch();
+    }
+
+    function setup() {
+      noCanvas();
+      mic = new p5.AudioIn();
+      mic.start(startPitch);
+    }
+
+    function startPitch() {
+      pitch = ml5.pitchDetection(
+        'https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models@main/models/pitch-detection/crepe/',
+        getAudioContext(),
+        mic.stream,
+        modelLoaded
+      );
+    }
+
+    function getPitch() {
+      pitch.getPitch(function(err, frequency) {
+        if (frequency) {
+          let midi = freqToMidi(frequency);
+          let note = midiToNoteName(midi);
+          noteDisplay.innerText = `Nota detectada: ${note}`;
+        } else {
+          noteDisplay.innerText = "Aguardando som...";
+        }
+        getPitch();
+      });
+    }
+
+    // Helpers
+    function freqToMidi(freq) {
+      return Math.round(69 + 12 * Math.log2(freq / 440));
+    }
+
+    function midiToNoteName(midi) {
+      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const note = notes[midi % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      return note + octave;
+    }
+  </script>
+</body>
+</html>
